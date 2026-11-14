@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Visor Panorámico 360° - Galería de Escenas</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Pannellum 360 Viewer -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/pannellum@2.5.6/build/pannellum.css"/>
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/pannellum@2.5.6/build/pannellum.js"></script>
+    
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            overflow: hidden;
+            user-select: none;
+        }
+        .pnlm-controls-container { display: none !important; }
+        .pnlm-load-box {
+            background-color: rgba(15, 23, 42, 0.85) !important;
+            backdrop-filter: blur(8px);
+            border-radius: 1rem !important;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            font-family: 'Inter', sans-serif !important;
+        }
+        .pnlm-lbar-fill { background: #38bdf8 !important; }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in { animation: fadeIn 0.35s ease-out forwards; }
+    </style>
+</head>
+<body class="bg-slate-950 text-white w-screen h-screen relative">
+
+    <!-- Contenedor 360° -->
+    <div id="panorama" class="w-full h-full absolute inset-0 z-0"></div>
+
+    <!-- Barra Superior -->
+    <header class="absolute top-0 left-0 right-0 z-10 p-4 sm:p-6 flex flex-wrap items-center justify-between gap-3 pointer-events-none">
+        <!-- Título -->
+        <div class="bg-slate-900/80 backdrop-blur-md border border-white/15 rounded-2xl px-4 py-2.5 shadow-xl pointer-events-auto flex items-center gap-3 animate-fade-in">
+            <div class="w-9 h-9 rounded-xl bg-sky-500/20 border border-sky-400/30 flex items-center justify-center text-sky-400 shrink-0">
+                <i data-lucide="compass" class="w-5 h-5"></i>
+            </div>
+            <div>
+                <h1 class="text-sm sm:text-base font-bold text-white tracking-tight" id="scene-title">Escena 1</h1>
+                <p class="text-xs text-slate-300 hidden sm:block" id="scene-subtitle">Vista panorámica 360°</p>
+            </div>
+        </div>
+
+        <!-- Selector de Escenas + Copiar Link -->
+        <div class="flex flex-wrap items-center gap-2 pointer-events-auto animate-fade-in">
+            <div id="scene-selector" class="bg-slate-900/80 backdrop-blur-md border border-white/15 rounded-2xl p-1.5 shadow-xl flex items-center gap-1">
+                <!-- Botones generados dinámicamente -->
+            </div>
+
+            <button id="btn-copy-link" title="Copiar enlace directo de esta imagen" class="bg-sky-500 hover:bg-sky-400 active:scale-95 transition-all rounded-2xl px-3.5 py-2.5 shadow-xl flex items-center gap-2 text-xs sm:text-sm font-semibold text-slate-950">
+                <i data-lucide="link" class="w-4 h-4"></i>
+                <span>Copiar link</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- Barra Inferior: Controles de Cámara -->
+    <footer class="absolute bottom-6 left-1/2 -translate-x-1/2 z-10 pointer-events-none w-full max-w-fit px-4">
+        <div class="bg-slate-900/80 backdrop-blur-md border border-white/15 rounded-2xl p-2 shadow-2xl pointer-events-auto flex items-center gap-1.5 sm:gap-2 animate-fade-in">
+            <button id="btn-zoom-in" title="Acercar" class="p-3 rounded-xl hover:bg-white/10 transition-colors text-slate-200 hover:text-white">
+                <i data-lucide="zoom-in" class="w-5 h-5"></i>
+            </button>
+            <button id="btn-zoom-out" title="Alejar" class="p-3 rounded-xl hover:bg-white/10 transition-colors text-slate-200 hover:text-white">
+                <i data-lucide="zoom-out" class="w-5 h-5"></i>
+            </button>
+
+            <div class="w-px h-6 bg-white/15 mx-0.5"></div>
+
+            <button id="btn-autorotate" title="Auto-girar" class="p-3 rounded-xl hover:bg-white/10 transition-colors text-slate-200 hover:text-white flex items-center gap-2">
+                <i data-lucide="rotate-cw" id="icon-autorotate" class="w-5 h-5"></i>
+                <span class="text-xs font-medium hidden md:inline">Auto-girar</span>
+            </button>
+
+            <button id="btn-reset" title="Centrar vista" class="p-3 rounded-xl hover:bg-white/10 transition-colors text-slate-200 hover:text-white flex items-center gap-2">
+                <i data-lucide="crosshair" class="w-5 h-5"></i>
+                <span class="text-xs font-medium hidden md:inline">Centrar</span>
+            </button>
+
+            <div class="w-px h-6 bg-white/15 mx-0.5"></div>
+
+            <button id="btn-fullscreen" title="Pantalla completa" class="p-3 rounded-xl hover:bg-white/10 transition-colors text-slate-200 hover:text-white">
+                <i data-lucide="maximize" class="w-5 h-5"></i>
+            </button>
+        </div>
+    </footer>
+
+    <!-- Notificación Toast -->
+    <div id="toast-container" class="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 pointer-events-none"></div>
+
+    <script>
+        lucide.createIcons();
+
+        // CONFIGURACIÓN DE TUS 5 ESCENAS EN LA CARPETA /assets/ (.jpeg)
+        const ESCENAS = {
+            "1": {
+                titulo: "Escena 1 - Docente y Grupo",
+                subtitulo: "Aula principal - Vista frente al tablero",
+                archivo: "./assets/escena1.jpeg",
+                yaw: 0,
+                pitch: 0
+            },
+            "2": {
+                titulo: "Escena 2 - Actividad en el Suelo",
+                subtitulo: "Trabajo colaborativo en papelógrafo",
+                archivo: "./assets/escena2.jpeg",
+                yaw: 0,
+                pitch: -10
+            },
+            "3": {
+                titulo: "Escena 3 - Acompañamiento en Puestos",
+                subtitulo: "Revisión individual en pupitres",
+                archivo: "./assets/escena3.jpeg",
+                yaw: 0,
+                pitch: 0
+            },
+            "4": {
+                titulo: "Escena 4 - Trabajo en Pupitre",
+                subtitulo: "Actividad creativa junto a la ventana",
+                archivo: "./assets/escena4.jpeg",
+                yaw: -25,
+                pitch: -5
+            },
+            "5": {
+                titulo: "Escena 5 - Vista General",
+                subtitulo: "Panorámica completa del salón",
+                archivo: "./assets/escena5.jpeg",
+                yaw: 0,
+                pitch: 0
+            }
+        };
+
+        let viewer = null;
+        let isAutoRotating = false;
+        let currentSceneId = "1";
+
+        function showToast(message) {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = 'bg-slate-900/95 border border-sky-500/40 text-white backdrop-blur-md px-4 py-2.5 rounded-2xl shadow-xl text-xs sm:text-sm font-medium animate-fade-in';
+            toast.textContent = message;
+            container.innerHTML = '';
+            container.appendChild(toast);
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transition = 'opacity 0.3s ease';
+                setTimeout(() => toast.remove(), 300);
+            }, 3500);
+        }
+
+        function renderSceneButtons() {
+            const container = document.getElementById('scene-selector');
+            container.innerHTML = '';
+            Object.keys(ESCENAS).forEach(id => {
+                const btn = document.createElement('button');
+                const isActive = id === currentSceneId;
+                btn.textContent = `Img ${id}`;
+                btn.className = isActive
+                    ? 'px-3 py-1.5 rounded-xl text-xs font-bold bg-sky-500 text-slate-950 transition-all'
+                    : 'px-3 py-1.5 rounded-xl text-xs font-medium text-slate-300 hover:bg-white/10 hover:text-white transition-all';
+                btn.onclick = () => loadScene(id, true);
+                container.appendChild(btn);
+            });
+        }
+
+        function loadScene(id, updateUrl = false) {
+            const scene = ESCENAS[id] || ESCENAS["1"];
+            currentSceneId = ESCENAS[id] ? id : "1";
+
+            document.getElementById('scene-title').textContent = scene.titulo;
+            document.getElementById('scene-subtitle').textContent = scene.subtitulo;
+            renderSceneButtons();
+
+            if (updateUrl) {
+                const url = new URL(window.location);
+                url.searchParams.set('escena', currentSceneId);
+                window.history.pushState({}, '', url);
+            }
+
+            if (viewer) {
+                try { viewer.destroy(); } catch (e) {}
+            }
+
+            const isLocalFile = window.location.protocol === 'file:';
+
+            viewer = pannellum.viewer('panorama', {
+                type: 'equirectangular',
+                panorama: scene.archivo,
+                autoLoad: true,
+                showControls: false,
+                hfov: 100,
+                minHfov: 40,
+                maxHfov: 120,
+                yaw: scene.yaw || 0,
+                pitch: scene.pitch || 0,
+                friction: 0.15,
+                strings: {
+                    loadingLabel: `Cargando ${scene.titulo}...`,
+                    fileAccessError: isLocalFile
+                        ? `Abriste el HTML localmente (file://). Súbelo a GitHub Pages o usa Live Server para cargar ${scene.archivo}.`
+                        : `No se encontró ${scene.archivo} en el repositorio.`
+                }
+            });
+
+            isAutoRotating = false;
+            document.getElementById('btn-autorotate').classList.remove('bg-sky-500/20', 'text-sky-400');
+            document.getElementById('icon-autorotate').classList.remove('animate-spin');
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            const params = new URLSearchParams(window.location.search);
+            const requestedScene = params.get('escena') || "1";
+            loadScene(requestedScene, false);
+
+            document.getElementById('btn-copy-link').addEventListener('click', () => {
+                const url = new URL(window.location.href);
+                url.searchParams.set('escena', currentSceneId);
+                navigator.clipboard.writeText(url.toString()).then(() => {
+                    showToast(`Enlace de la Imagen ${currentSceneId} copiado al portapapeles`);
+                });
+            });
+
+            document.getElementById('btn-zoom-in').addEventListener('click', () => {
+                if (viewer) viewer.setHfov(Math.max(40, viewer.getHfov() - 12));
+            });
+
+            document.getElementById('btn-zoom-out').addEventListener('click', () => {
+                if (viewer) viewer.setHfov(Math.min(120, viewer.getHfov() + 12));
+            });
+
+            document.getElementById('btn-autorotate').addEventListener('click', () => {
+                if (!viewer) return;
+                isAutoRotating = !isAutoRotating;
+                const btn = document.getElementById('btn-autorotate');
+                const icon = document.getElementById('icon-autorotate');
+                if (isAutoRotating) {
+                    viewer.startAutoRotate(-2.5);
+                    btn.classList.add('bg-sky-500/20', 'text-sky-400');
+                    icon.classList.add('animate-spin');
+                } else {
+                    viewer.stopAutoRotate();
+                    btn.classList.remove('bg-sky-500/20', 'text-sky-400');
+                    icon.classList.remove('animate-spin');
+                }
+            });
+
+            document.getElementById('btn-reset').addEventListener('click', () => {
+                if (!viewer) return;
+                const scene = ESCENAS[currentSceneId];
+                viewer.setPitch(scene.pitch || 0, 500);
+                viewer.setYaw(scene.yaw || 0, 500);
+                viewer.setHfov(100, 500);
+            });
+
+            document.getElementById('btn-fullscreen').addEventListener('click', () => {
+                if (viewer) viewer.toggleFullscreen();
+            });
+        });
+    </script>
+</body>
+</html>
